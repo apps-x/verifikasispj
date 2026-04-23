@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isDocumentOwner() {
+      return isSignedIn() && resource.data.uploadedBy == request.auth.uid;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Collections ---
+
+    // Users
+    match /users/{userId} {
+      // Re-securing the read rule: User can read their own, or admin can read all
+      allow read: if isOwner(userId) || isAdmin();
+      
+      allow create: if isOwner(userId) 
+                    && incoming().role == 'user'
+                    && incoming().keys().hasAll(['uid', 'email', 'displayName', 'role', 'createdAt'])
+                    && incoming().keys().size() == 5;
+      
+      allow update: if isSignedIn() && (
+        (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['displayName'])) ||
+        isAdmin()
+      );
+    }
+
+    // Documents
+    match /documents/{docId} {
+      function isValidDocument(data) {
+        return data.title is string && data.title.size() <= 300
+               && data.fileUrl is string && data.fileUrl.size() <= 2000
+               && (data.uploadedBy == request.auth.uid || isAdmin())
+               && data.status in ['pending', 'verified', 'rejected'];
+      }
+
+      allow get: if isSignedIn() && (isDocumentOwner() || isAdmin());
+      allow list: if isSignedIn() && (isAdmin() || (resource.data.uploadedBy == request.auth.uid));
+      
+      allow create: if isSignedIn() 
+                    && isValidDocument(incoming())
+                    && incoming().status == 'pending'
+                    && incoming().keys().hasAll(['title', 'fileUrl', 'uploadedBy', 'status', 'createdAt', 'updatedAt']);
+
+      allow update: if isSignedIn() && (
+        // Admin verification action
+        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'feedback', 'verifiedBy', 'updatedAt']) 
+         && incoming().status in ['verified', 'rejected'])
+        ||
+        // User update (only if pending)
+        (isOwner(existing().uploadedBy) && existing().status == 'pending' 
+         && isValidDocument(incoming()))
+      );
+
+      allow delete: if isOwner(existing().uploadedBy) && existing().status == 'pending';
+    }
+
+    // Notifications
+    match /notifications/{notifId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAdmin();
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+    }
+  }
+}

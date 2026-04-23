@@ -1,0 +1,6 @@
+{
+  "name": "SPJ Verifier",
+  "description": "Sistem verifikasi dokumen Surat Pertanggungjawaban (SPJ) dengan fitur validasi real-time, manajemen multi-user, dan rekapitulasi pelaporan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

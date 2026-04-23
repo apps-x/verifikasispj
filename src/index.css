@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Arial", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Arial", ui-serif, Georgia, serif;
+  --font-mono: "Arial", ui-monospace, SFMono-Regular, monospace;
+
+  --color-gold: #d4af37;
+  --color-dark-surface: #050505;
+  --color-dark-panel: #0a0a0a;
+  --color-dark-border: #1a1a1a;
+  --color-dark-muted: #6b7280;
+}
+
+@layer base {
+  body {
+    @apply bg-dark-surface text-[#e5e7eb] font-sans antialiased;
+  }
+}
