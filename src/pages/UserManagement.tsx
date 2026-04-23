@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, onSnapshot, doc, updateDoc, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, updateDoc, orderBy, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { UserProfile, UserRole } from '../types';
@@ -14,7 +14,9 @@ import {
   Check,
   X,
   Loader2,
-  ShieldAlert
+  Trash2,
+  ShieldAlert,
+  AlertTriangle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -25,6 +27,7 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile || profile.role !== 'admin') return;
@@ -53,6 +56,24 @@ export default function UserManagement() {
     } catch (err) {
       console.error('Failed to update role:', err);
       alert('Gagal memperbarui peran. Pastikan Anda memiliki izin.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const deleteUser = async (user: UserProfile) => {
+    if (user.uid === profile?.uid) {
+      alert('Anda tidak bisa menghapus akun Anda sendiri.');
+      return;
+    }
+
+    setUpdatingId(user.uid);
+    try {
+      await deleteDoc(doc(db, 'users', user.uid));
+      setDeleteConfirmId(null);
+    } catch (err) {
+      console.error('Failed to delete user:', err);
+      alert('Gagal menghapus pengguna. Pastikan Anda memiliki izin.');
     } finally {
       setUpdatingId(null);
     }
@@ -132,24 +153,35 @@ export default function UserManagement() {
                       <span className="text-[10px] font-bold text-dark-muted uppercase tracking-widest">{format(user.createdAt, 'dd MMM yyyy')}</span>
                     </td>
                     <td className="px-6 py-5 text-right">
-                      <button
-                        onClick={() => toggleRole(user)}
-                        disabled={updatingId === user.uid || user.uid === profile?.uid}
-                        className={`text-[9px] font-bold uppercase tracking-widest px-4 py-2 rounded-sm border transition-all ${
-                          user.role === 'admin'
-                            ? 'border-red-900/30 text-red-400 hover:bg-red-400/5'
-                            : 'border-gold/30 text-gold hover:bg-gold/5'
-                        } disabled:opacity-30 flex items-center gap-2 ml-auto`}
-                      >
-                        {updatingId === user.uid ? (
-                          <Loader2 size={10} className="animate-spin" />
-                        ) : user.role === 'admin' ? (
-                          <ShieldAlert size={10} />
-                        ) : (
-                          <Shield size={10} />
-                        )}
-                        <span>{user.role === 'admin' ? 'REVOCATE ADMIN' : 'PROMOTE ADMIN'}</span>
-                      </button>
+                      <div className="flex items-center justify-end gap-3">
+                        <button
+                          onClick={() => toggleRole(user)}
+                          disabled={updatingId === user.uid || user.uid === profile?.uid}
+                          className={`text-[9px] font-bold uppercase tracking-widest px-4 py-2 rounded-sm border transition-all ${
+                            user.role === 'admin'
+                              ? 'border-red-900/30 text-red-400 hover:bg-red-400/5'
+                              : 'border-gold/30 text-gold hover:bg-gold/5'
+                          } disabled:opacity-30 flex items-center gap-2`}
+                        >
+                          {updatingId === user.uid ? (
+                            <Loader2 size={10} className="animate-spin" />
+                          ) : user.role === 'admin' ? (
+                            <ShieldAlert size={10} />
+                          ) : (
+                            <Shield size={10} />
+                          )}
+                          <span>{user.role === 'admin' ? 'REVOCATE ADMIN' : 'PROMOTE ADMIN'}</span>
+                        </button>
+
+                        <button
+                          onClick={() => setDeleteConfirmId(user.uid)}
+                          disabled={updatingId === user.uid || user.uid === profile?.uid}
+                          className="p-2 text-dark-muted hover:text-red-500 hover:bg-red-500/5 rounded-sm transition-all border border-transparent hover:border-red-500/20 disabled:opacity-30"
+                          title="Hapus Pengguna"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -171,9 +203,54 @@ export default function UserManagement() {
           <h3 className="text-xs font-bold uppercase tracking-[0.2em]">Kebijakan Keamanan Akun</h3>
         </div>
         <p className="text-[11px] text-dark-muted leading-relaxed max-w-2xl font-medium">
-          Untuk menjaga standar keamanan enkripsi tertinggi, administrator tidak diizinkan untuk mengubah kata sandi pengguna secara langsung. Gunakan fitur "Lupa Kata Sandi" pada portal login untuk mengirimkan instruksi pemulihan kode akses yang aman secara langsung ke email terdaftar pengguna.
+          Untuk menjaga standar keamanan enkripsi tertinggi, administrator tidak diizinkan untuk mengubah kata sandi pengguna secara langsung. Gunakan fitur "Lupa Kata Sandi" pada portal login untuk mengirimkan instruksi pemulihan kode akses yang aman secara langsung ke email terdaftar pengguna. Fitur penghapusan user hanya menghapus profil dari database sistem, bukan dari kredensial autentikasi utama.
         </p>
       </div>
+
+      <AnimatePresence>
+        {deleteConfirmId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeleteConfirmId(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            ></motion.div>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-dark-panel border border-dark-border p-8 rounded-sm shadow-2xl"
+            >
+              <div className="flex items-center gap-4 text-red-500 mb-6 font-bold uppercase tracking-widest text-xs">
+                <AlertTriangle size={20} />
+                <span>Konfirmasi Penghapusan</span>
+              </div>
+              <p className="text-sm text-dark-muted mb-8 leading-relaxed">
+                Apakah Anda yakin ingin menghapus pengguna ini dari direktori sistem? Tindakan ini bersifat permanen dan pengguna akan kehilangan semua hak akses operasional.
+              </p>
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="flex-1 py-4 text-[10px] font-bold uppercase tracking-widest text-[#9ca3af] hover:text-white transition-colors"
+                >
+                  BATALKAN
+                </button>
+                <button 
+                  onClick={() => {
+                    const user = users.find(u => u.uid === deleteConfirmId);
+                    if (user) deleteUser(user);
+                  }}
+                  className="flex-1 py-4 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-900/20"
+                >
+                  HAPUS PERMANEN
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
