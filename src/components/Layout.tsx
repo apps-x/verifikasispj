@@ -9,7 +9,8 @@ import {
   User as UserIcon,
   Bell,
   Menu,
-  X
+  X,
+  Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import NotificationBell from './NotificationBell';
@@ -28,8 +29,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     ...(profile?.role === 'user' ? [{ name: 'Unggah SPJ', path: '/upload', icon: FileUp }] : []),
-    ...(profile?.role === 'admin' ? [{ name: 'Verifikasi', path: '/verify', icon: CheckCircle2 }] : []),
-    { name: 'Rekapitulasi', path: '/recap', icon: FileUp }, // Using same icon for simplicity or choose another
+    ...(profile?.role === 'admin' ? [
+      { name: 'Verifikasi', path: '/verify', icon: CheckCircle2 },
+      { name: 'Manajemen User', path: '/users', icon: Users }
+    ] : []),
+    { name: 'Rekapitulasi', path: '/recap', icon: FileUp },
   ];
 
   if (!user) return <>{children}</>;
@@ -38,7 +42,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-dark-surface flex flex-col md:flex-row font-sans">
       {/* Mobile Header */}
       <div className="md:hidden bg-dark-panel border-b border-dark-border px-4 py-3 flex items-center justify-between sticky top-0 z-50">
-        <h1 className="text-xl font-serif italic text-white leading-none">Verif.SPJ</h1>
+        <h1 className="text-xl font-bold tracking-tighter text-white leading-none">VERIF.SPJ</h1>
         <div className="flex items-center gap-2">
           <NotificationBell />
           <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 text-dark-muted">
@@ -56,8 +60,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="h-full flex flex-col">
           <div className="p-8 hidden md:flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-serif italic text-white leading-none">Verif.SPJ</h1>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-dark-muted mt-1">System Management</p>
+              <h1 className="text-2xl font-bold tracking-tighter text-white leading-none">VERIF.SPJ</h1>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-dark-muted mt-1 font-bold">System Management</p>
             </div>
             <NotificationBell />
           </div>

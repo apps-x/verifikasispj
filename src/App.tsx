@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import Upload from './pages/Upload';
 import Verify from './pages/Verify';
 import Recap from './pages/Recap';
+import UserManagement from './pages/UserManagement';
 
 function ProtectedRoute({ children, role }: { children: React.ReactNode, role?: 'admin' | 'user' }) {
   const { user, profile, loading } = useAuth();
@@ -40,6 +41,10 @@ export default function App() {
               element={<ProtectedRoute role="admin"><Verify /></ProtectedRoute>} 
             />
             <Route path="/recap" element={<ProtectedRoute><Recap /></ProtectedRoute>} />
+            <Route 
+              path="/users" 
+              element={<ProtectedRoute role="admin"><UserManagement /></ProtectedRoute>} 
+            />
           </Routes>
         </Layout>
       </Router>
